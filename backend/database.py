@@ -1,16 +1,18 @@
 import json
 import faiss
 import numpy as np
+import requests
 import os
 from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.orm import declarative_base, sessionmaker
 import datetime
-from sentence_transformers import SentenceTransformer
 
-# Load model ONCE in-process (no HTTP round-trip = instant embeddings)
-print("Loading SentenceTransformer model in-process...")
-_model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
-print("Model loaded.")
+# Read model-service URL from environment (set on Render)
+MODEL_SERVICE_URL = os.getenv("MODEL_SERVICE_URL", "http://127.0.0.1:8001/embed")
+print(f"Model service URL: {MODEL_SERVICE_URL}")
+
+# Persistent HTTP session for connection reuse
+http_session = requests.Session()
 # --- SQLAlchemy Setup ---
 DB_PATH = os.path.join(os.path.dirname(__file__), "../data/titles.db")
 engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False})
@@ -50,8 +52,9 @@ class TitleDatabase:
 
     def _get_embedding(self, text):
         try:
-            # In-process embedding — no HTTP overhead
-            emb = _model.encode([text])[0].astype(np.float32)
+            res = http_session.post(MODEL_SERVICE_URL, json={"text": text}, timeout=10)
+            res.raise_for_status()
+            emb = np.array(res.json()["embedding"], dtype=np.float32)
             faiss.normalize_L2(emb.reshape(1, -1))
             return emb
         except Exception as e:

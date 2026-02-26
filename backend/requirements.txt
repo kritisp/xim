@@ -6,6 +6,5 @@ numpy
 python-Levenshtein
 jellyfish
 pydantic
-sentence-transformers
 faiss-cpu
 sqlalchemy
