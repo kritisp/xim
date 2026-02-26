@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+requests
+scikit-learn
+numpy
+python-Levenshtein
+jellyfish
+pydantic
+sentence-transformers
+faiss-cpu
+sqlalchemy

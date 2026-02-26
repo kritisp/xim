@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+.git
+.env
+*.npy
+data_pipeline/raw_excel/
+data_pipeline/raw_csv/
+data_pipeline/training_pairs.json
+data_pipeline/combined_raw.csv
+data_pipeline/combined_preprocessed.csv
+frontend/
+model-service/

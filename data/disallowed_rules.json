@@ -1,0 +1,5 @@
+{
+    "disallowed_words": ["police", "crime", "corruption", "cbi", "cid", "army"],
+    "disallowed_prefixes": ["the", "india", "samachar", "news"],
+    "periodicity_words": ["daily", "weekly", "monthly"]
+}
