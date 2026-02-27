@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from rules import check_rules
-from similarity import compute_similarity
+from similarity import compute_similarity, check_combination
 
 app = FastAPI()
 
@@ -23,39 +23,37 @@ async def verify_title(data: TitleInput):
 
     title = data.title
     all_details = []
+    blocked = False
+    block_reason = ""
 
     # Step 1 — Rules Check (Prefix, Disallowed Words, Periodicity)
     rule_result = check_rules(title)
     all_details.extend(rule_result.get("details", []))
-
     if rule_result["blocked"]:
-        return {
-            "title": title,
-            "status": "Rejected",
-            "reason": rule_result["reason"],
-            "similarity_score": 100,
-            "verification_probability": 0,
-            "details": all_details
-        }
+        blocked = True
+        block_reason = rule_result["reason"]
 
     # Step 2 — Combination Check
-    from similarity import check_combination
     combo_result = check_combination(title)
     all_details.extend(combo_result.get("details", []))
+    if not blocked and combo_result.get("blocked"):
+        blocked = True
+        block_reason = combo_result["reason"]
 
-    if combo_result["blocked"]:
+    # Step 3 — ALWAYS run Similarity (Semantic + Phonetic) to show matched titles
+    similarity_score, similarity_details = compute_similarity(title)
+    all_details.extend(similarity_details)
+
+    # If already blocked by rules/combination, override score
+    if blocked:
         return {
             "title": title,
             "status": "Rejected",
-            "reason": combo_result["reason"],
+            "reason": block_reason,
             "similarity_score": 100,
             "verification_probability": 0,
             "details": all_details
         }
-
-    # Step 3 — Similarity Calculation (Semantic + Phonetic)
-    similarity_score, similarity_details = compute_similarity(title)
-    all_details.extend(similarity_details)
 
     # Step 4 — Verification Probability Calculation
     probability = max(0, 100 - similarity_score)
