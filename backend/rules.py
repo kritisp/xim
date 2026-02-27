@@ -18,32 +18,57 @@ from database import db
 
 def check_rules(title):
     t = title.lower()
+    details = []
 
     # Rule 1 — Disallowed words
     for word in DISALLOWED_WORDS:
-        # Check as whole word
         if f" {word} " in f" {t} ":
-            return {"blocked": True, "reason": f"Contains disallowed word: '{word}'"}
+            details.append({
+                "check_type": "disallowed_word",
+                "description": f"Contains disallowed word '{word}'",
+                "matched_word": word,
+                "matched_title": None,
+                "score": None
+            })
 
     # Rule 2 — Disallowed prefixes/suffixes
     for prefix in DISALLOWED_PREFIXES:
         if t.startswith(prefix + " "):
-            return {"blocked": True, "reason": f"Disallowed prefix: '{prefix}'"}
+            details.append({
+                "check_type": "disallowed_prefix",
+                "description": f"Title starts with disallowed prefix '{prefix}'",
+                "matched_word": prefix,
+                "matched_title": None,
+                "score": None
+            })
         if t.endswith(" " + prefix):
-            return {"blocked": True, "reason": f"Disallowed suffix: '{prefix}'"}
+            details.append({
+                "check_type": "disallowed_suffix",
+                "description": f"Title ends with disallowed suffix '{prefix}'",
+                "matched_word": prefix,
+                "matched_title": None,
+                "score": None
+            })
 
     # Rule 3 — Periodicity + Existing Title
-    # Extract potential periodicity words from the title
     found_periodicity = [p for p in PERIODICITY_WORDS if f" {p} " in f" {t} " or t.startswith(p + " ") or t.endswith(" " + p)]
     
     if found_periodicity:
-        # Remove the periodicity word and check if it resembles an existing title
         cleaned_t = t
         for p in found_periodicity:
             cleaned_t = cleaned_t.replace(p, "").strip()
             
-        # Use pre-computed O(1) set — no per-request rebuild
         if cleaned_t in db.get_titles_set():
-            return {"blocked": True, "reason": f"Cannot form a new title by adding periodicity '{found_periodicity[0]}' to existing title"}
+            details.append({
+                "check_type": "periodicity",
+                "description": f"Adding periodicity word '{found_periodicity[0]}' to existing title '{cleaned_t}'",
+                "matched_word": found_periodicity[0],
+                "matched_title": cleaned_t,
+                "score": None
+            })
 
-    return {"blocked": False, "reason": ""}
+    if details:
+        # Use the first detail as the primary reason
+        return {"blocked": True, "reason": details[0]["description"], "details": details}
+
+    return {"blocked": False, "reason": "", "details": []}
