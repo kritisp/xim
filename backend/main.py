@@ -58,8 +58,8 @@ async def verify_title(data: TitleInput):
     # Step 4 — Verification Probability Calculation
     probability = max(0, 100 - similarity_score)
     
-    # Threshold: 80% similarity means auto-reject
-    status = "Approved" if probability > 20 else "Rejected"
+    # Threshold: 50% similarity means auto-reject
+    status = "Approved" if similarity_score < 50 else "Rejected"
     reason = "Title is unique and follows guidelines" if status == "Approved" else f"Title is too similar to existing titles ({similarity_score:.2f}% match)"
 
     if status == "Approved":
