@@ -23,37 +23,40 @@ async def verify_title(data: TitleInput):
 
     title = data.title
     all_details = []
-    blocked = False
-    block_reason = ""
 
     # Step 1 — Rules Check (Prefix, Disallowed Words, Periodicity)
     rule_result = check_rules(title)
     all_details.extend(rule_result.get("details", []))
+
     if rule_result["blocked"]:
-        blocked = True
-        block_reason = rule_result["reason"]
-
-    # Step 2 — Combination Check
-    combo_result = check_combination(title)
-    all_details.extend(combo_result.get("details", []))
-    if not blocked and combo_result.get("blocked"):
-        blocked = True
-        block_reason = combo_result["reason"]
-
-    # Step 3 — ALWAYS run Similarity (Semantic + Phonetic) to show matched titles
-    similarity_score, similarity_details = compute_similarity(title)
-    all_details.extend(similarity_details)
-
-    # If already blocked by rules/combination, override score
-    if blocked:
+        # Rule-based rejection — return immediately (no slow similarity needed)
         return {
             "title": title,
             "status": "Rejected",
-            "reason": block_reason,
+            "reason": rule_result["reason"],
             "similarity_score": 100,
             "verification_probability": 0,
             "details": all_details
         }
+
+    # Step 2 — Combination Check
+    combo_result = check_combination(title)
+    all_details.extend(combo_result.get("details", []))
+
+    if combo_result.get("blocked"):
+        return {
+            "title": title,
+            "status": "Rejected",
+            "reason": combo_result["reason"],
+            "similarity_score": 100,
+            "verification_probability": 0,
+            "details": all_details
+        }
+
+    # Step 3 — Similarity Calculation (Semantic + Phonetic)
+    # Only runs if rules/combination passed — this is the slow step (model service call)
+    similarity_score, similarity_details = compute_similarity(title)
+    all_details.extend(similarity_details)
 
     # Step 4 — Verification Probability Calculation
     probability = max(0, 100 - similarity_score)
